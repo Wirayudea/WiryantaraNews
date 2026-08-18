@@ -1,0 +1,23 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+newspaper3k>=0.2.8
+requests>=2.31.0
+beautifulsoup4>=4.12.3
+lxml>=5.2.1
+lxml_html_clean
+google-api-python-client>=2.70.0
+python-multipart>=0.0.6
+reportlab>=5.0.0
+
+# ── Topic modeling (BERTopic + IndoBERT) ────────────────────────────────────
+bertopic>=0.16.0
+sentence-transformers>=2.7.0
+umap-learn>=0.5.5
+hdbscan>=0.8.33
+scikit-learn>=1.4.0
+pandas>=2.0.0
+gensim>=4.3.0
+
+# ── Pra-pemrosesan teks Bahasa Indonesia ────────────────────────────────────
+nltk>=3.8.1
+Sastrawi>=1.0.1

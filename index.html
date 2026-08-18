@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrendingRadar — Scraper Berita Indonesia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker-bar" id="ticker">
+  <div class="ticker-inner" id="tickerInner">
+    <span class="ticker-item">Memuat berita terbaru…</span>
+  </div>
+</div>
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Berita<span>Trending</span>
+    </div>
+    <nav>
+      <button class="nav-btn active" id="navArticles" onclick="switchView('articles')">Berita</button>
+      <button class="nav-btn" id="navTopics" onclick="switchView('topics')">Analitik Topik</button>
+      <button class="nav-btn" id="navTopicLog" onclick="switchView('topiclog')">Log Topik</button>
+      <button class="nav-btn" id="navLog" onclick="switchView('log')">Log Scraping</button>
+    </nav>
+    <div class="masthead-right">
+      <span class="status-badge idle" id="statusBadge">IDLE</span>
+    </div>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Kontrol Scraping</div>
+      <button class="btn-scrape" id="btnScrape" onclick="startScrape()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Mulai Scraping
+      </button>
+      <label class="btn-scrape" for="uploadInput" style="background:#1a4d7a;margin-top:0.75rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l4-4m-4 4l-4-4"/><path d="M5 20h14"/></svg>
+        Upload CSV
+      </label>
+      <div style="display:flex;gap:0.5rem;margin-top:0.65rem;flex-wrap:wrap;">
+        <a class="btn-danger" href="/api/articles/template/csv" style="text-decoration:none;color:var(--accent);background:none;border-color:var(--accent);padding:0.5rem 0.75rem;">Template CSV</a>
+      </div>
+      <input id="uploadInput" type="file" accept=".csv" style="display:none" onchange="uploadFile(event)">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label">
+          <span>Progress</span>
+          <span id="progressText">0 / 0</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-source" id="progressSource">Menunggu…</div>
+      </div>
+      <button class="btn-danger" onclick="clearArticles()">Hapus Semua Data</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Statistik</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="statTotal">—</div>
+          <div class="stat-label">Total Berita</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statRecent">—</div>
+          <div class="stat-label">24 Jam Terakhir</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Filter Sumber</div>
+      <div id="sourceList">
+        <div class="source-item" onclick="filterSource('')">
+          <span>Semua Sumber</span>
+          <span class="source-count" id="countAll">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sesi Terakhir</div>
+      <a class="btn-danger" href="/api/articles/export/csv" style="text-decoration:none;color:var(--accent);background:none;border-color:var(--accent);padding:0.6rem 0.75rem;margin-bottom:0.85rem;display:inline-block;">Export Berita CSV</a>
+      <div id="sessionInfo" style="font-family: var(--mono); font-size: 0.68rem; color: var(--warm-gray); line-height: 1.8;">
+        Belum ada sesi
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN: ARTICLES VIEW -->
+  <main class="main view-main" id="viewArticles">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="searchInput" type="text" placeholder="Cari judul atau isi berita…" oninput="debounceSearch()">
+      </div>
+      <select class="select-input" id="sortSelect" onchange="loadArticles()">
+        <option value="tanggal_publikasi">Terbaru</option>
+        <option value="tanggal_scraping">Waktu Scraping</option>
+        <option value="sumber">Sumber</option>
+      </select>
+    </div>
+
+    <!-- Header -->
+    <div class="articles-header">
+      <div class="articles-title">Daftar Berita</div>
+      <div class="articles-count" id="articlesCount">Memuat…</div>
+    </div>
+
+    <!-- Table -->
+    <div id="articleList">
+      <div class="article-row header-row">
+        <div>Tanggal</div>
+        <div>Judul Berita</div>
+        <div>Sumber</div>
+        <div>Link</div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">📰</div>
+        <div class="empty-text">Belum ada berita</div>
+        <div class="empty-sub">Klik "Mulai Scraping" untuk mengambil berita terbaru</div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+  </main>
+
+  <!-- TOPIC ANALYTICS VIEW -->
+  <main class="main" id="viewTopics" style="display:none;">
+    <div class="articles-header" style="margin-bottom:1rem;">
+      <div class="articles-title">Analitik Topik &amp; Trending Berita</div>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <span class="status-badge idle" id="topicStatusBadge" style="color:var(--warm-gray);border-color:var(--warm-gray);">IDLE</span>
+        <button class="btn-scrape" id="btnAnalyzeTopics" style="width:auto;padding:0.6rem 1.1rem;font-size:0.75rem;" onclick="startTopicAnalysis()">
+          Jalankan Analisis Topik
+        </button>
+      </div>
+    </div>
+    <div class="progress-source" id="topicStage" style="margin-bottom:1.25rem;"></div>
+
+    <!-- (topicLogPanel dipindah ke view terpisah `viewTopicLog`) -->
+
+    <div id="topicEmptyState" class="empty-state">
+      <div class="empty-icon">🧠</div>
+      <div class="empty-text">Belum ada hasil analisis topik</div>
+      <div class="empty-sub">Klik "Jalankan Analisis Topik" untuk memproses berita dengan BERTopic + IndoBERT</div>
+    </div>
+
+    <div id="topicResults" style="display:none;">
+
+      <!-- Trending Chart -->
+      <div style="margin-bottom:2.5rem;">
+        <div class="sidebar-label" style="border-bottom:1px solid var(--border);padding-bottom:0.5rem;">Trending Topik dari Waktu ke Waktu</div>
+
+        <div id="trendControls" style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="page-btn" id="trendBtn1" onclick="setTrendWindow(1)">1 Hari</button>
+            <button class="page-btn" id="trendBtn7" onclick="setTrendWindow(7)">7 Hari</button>
+            <button class="page-btn" id="trendBtn14" onclick="setTrendWindow(14)">14 Hari</button>
+            <button class="page-btn active" id="trendBtn30" onclick="setTrendWindow(30)">30 Hari</button>
+          </div>
+          <div id="topicPeriodLabel" style="font-family:var(--mono);font-size:0.75rem;color:var(--warm-gray);margin-left:auto;">Periode: 30 hari</div>
+        </div>
+        <div style="background:var(--cream);border:1px solid var(--border);padding:1.25rem;margin-top:0.75rem;height:320px;position:relative;">
+          <canvas id="trendChart" style="display:block;width:100%;height:100%;"></canvas>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2.5rem;">
+        <!-- Word Cloud -->
+        <div>
+          <div class="sidebar-label" style="border-bottom:1px solid var(--border);padding-bottom:0.5rem;">Word Cloud Topik</div>
+          <div id="wordCloudPanel" style="background:var(--cream);border:1px solid var(--border);padding:1.5rem;margin-top:0.75rem;min-height:280px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:0.4rem 0.9rem;"></div>
+        </div>
+
+        <!-- Recommendations -->
+        <div>
+          <div class="sidebar-label" style="border-bottom:1px solid var(--border);padding-bottom:0.5rem;">Rekomendasi Judul Berita Populer</div>
+          <div id="recoPanel" style="margin-top:0.75rem;"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:2.5rem;">
+        <div class="sidebar-label" style="border-bottom:1px solid var(--border);padding-bottom:0.5rem;">Evaluasi Coherence / Diversity</div>
+        <div id="topicQualityPanel" style="margin-top:0.75rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;"></div>
+        <div id="topicQualityChartWrapper" style="background:var(--cream);border:1px solid var(--border);padding:1.25rem;margin-top:0.75rem;min-height:320px;position:relative;">
+          <canvas id="topicQualityChart" style="display:block;width:100%;height:100%;"></canvas>
+        </div>
+      </div>
+
+      <!-- Topic List -->
+      <div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+          <button class="btn-scrape" onclick="downloadTopicReport()" style="align-self:flex-end;background:var(--green);border:none;padding:0.65rem 0.95rem;font-size:0.78rem;">Download Laporan</button>
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <select id="topicCategorySelect" class="select-input" onchange="renderTopicList(allTopicItems || []);" style="min-width:170px;max-width:260px;">
+              <option value="all">Semua Kategori</option>
+              <option value="kriminal">Kriminal</option>
+              <option value="hukum">Hukum</option>
+              <option value="politik">Politik</option>
+              <option value="ekonomi">Ekonomi</option>
+              <option value="sosial">Sosial</option>
+              <option value="bencana">Bencana</option>
+              <option value="pendidikan">Pendidikan</option>
+              <option value="kesehatan">Kesehatan</option>
+              <option value="olahraga">Olahraga</option>
+              <option value="hiburan">Hiburan</option>
+              <option value="otomotif">Otomotif</option>
+              <option value="teknologi">Teknologi</option>
+              <option value="internasional">Internasional</option>
+            </select>
+            <select id="topicSortSelect" class="select-input" onchange="loadTopicDashboard();" style="min-width:140px;max-width:200px;">
+              <option value="frequency">Urutkan: Frekuensi</option>
+              <option value="trend">Urutkan: Trend</option>
+            </select>
+            <div class="search-wrap" style="flex:1;min-width:220px;max-width:420px;">
+              <input class="search-input" id="topicSearchInput" type="text" placeholder="Cari topik…" oninput="debounceTopicSearch()">
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-label" style="border-bottom:1px solid var(--border);padding-bottom:0.5rem;">Daftar Topik</div>
+        <div id="topicListPanel" style="margin-top:0.75rem;"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- LOG VIEW -->
+  <main class="main view-log" id="viewLog">
+    <div class="articles-header" style="margin-bottom:1.5rem">
+      <div class="articles-title">Log Scraping</div>
+      <button onclick="clearLog()" style="font-family:var(--mono);font-size:0.7rem;background:none;border:1px solid var(--border);padding:4px 10px;cursor:pointer;color:var(--warm-gray);">Bersihkan</button>
+    </div>
+    <div style="background:var(--ink);border-top:3px solid var(--accent);padding:1.5rem;height:calc(100vh - 200px);overflow-y:auto;" id="logPanel">
+      <div style="font-family:var(--mono);font-size:0.72rem;color:var(--warm-gray);text-align:center;padding:2rem;">Belum ada log. Mulai scraping untuk melihat proses.</div>
+    </div>
+  </main>
+
+  <!-- TOPIC LOG VIEW -->
+  <main class="main view-log" id="viewTopicLog" style="display:none;">
+    <div class="articles-header" style="margin-bottom:1.5rem">
+      <div class="articles-title">Log Analisis Topik</div>
+      <button onclick="clearTopicLog()" style="font-family:var(--mono);font-size:0.7rem;background:none;border:1px solid var(--border);padding:4px 10px;cursor:pointer;color:var(--warm-gray);">Bersihkan</button>
+    </div>
+    <div style="background:var(--ink);border-top:3px solid var(--accent);padding:1.5rem;height:calc(100vh - 200px);overflow-y:auto;" id="topicLogPanel">
+      <div style="font-family:var(--mono);font-size:0.72rem;color:var(--warm-gray);text-align:center;padding:2rem;">Belum ada log analisis topik. Jalankan analisis untuk melihat proses.</div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-meta" id="modalMeta"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="assets/index.js"></script>
+</body>
+</html>
